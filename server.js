@@ -4,6 +4,7 @@ const path = require("path");
 const app = express();
 const mongoose = require("./db/dbConnection");
 const bodyParser = require("body-parser");
+const user = require("./routes/User")
 require("dotenv").config();
 const port = process.env.PORT;
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -21,6 +22,8 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: "50mb" }));
+
+app.use("/user",user)
 
 
 

@@ -19,11 +19,6 @@ const AdminSchema = new mongoose.Schema(
         "Please fill a valid email address",
       ],
     },
-    Phone: {
-      type: Number,
-      unique: true,
-      trim: true,
-    },
     Password: {
       type: String,
       required: true,

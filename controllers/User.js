@@ -1,8 +1,13 @@
 const Admin = require("../models/User");
 const bcrypt = require("bcrypt");
 var jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+var CryptoJS = require("crypto-js");
 require("dotenv").config();
 
+const algorithm = 'aes-256-cbc';
+const key = crypto.randomBytes(32);
+const iv = crypto.randomBytes(16);
 async function adminPost(req, res, next) {
   try {
     const { Email, Password } = req.body;
@@ -71,9 +76,15 @@ async function adminRegister(req, res) {
 
 async function changePassword(req, res, next) {
     try {
-      // const {Password } = req.body;
+      const {Password } = req.body;
+      const hashedPassword = await bcrypt.hash(Password, 10);
       console.log(req.user)
-      res.status(402).json({ message: "Not found" });
+     await  Admin.findOneAndUpdate(req.user._id,{
+      $set:{
+        Password:hashedPassword
+      }
+     })
+     res.status(200).json({ message: "Successfully change"})
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
@@ -94,10 +105,73 @@ async function getAdminCount(req, res, next) {
   res.json(count);
 }
 
+async function getUser(req, res, next) {
+  res.send({"user":req.user});
+}
+
+async function sendEmailResetPassword(req, res) {
+   const {Email} = req.body;
+   let user = await Admin.findOne({Email:Email});
+   if(user){
+     let secret = user._id+process.env.SECRET_KEY
+    var token = jwt.sign({userID:user._id},secret,{expiresIn:"15m"});
+    var ciphertext = CryptoJS.AES.encrypt((user._id).toString(), 'secret key 123').toString();
+
+    console.log(ciphertext)
+ 
+
+    let link = `http://localhost:3000/api/user/reset/${ciphertext}/${token}`
+    console.log(link)
+    res.send("Hello user")
+   }else{
+    res.status(500).json({ message: "Please Enter right Email" });
+   }
+
+}
+
+async function passwordUpdate(req, res) {
+  const {Password , id} = req.body;
+   const {token} = req.params;
+   console.log(id)
+     // Decrypt
+     var bytes  = CryptoJS.AES.decrypt((id).toString(), 'secret key 123');
+     var originalText = bytes.toString(CryptoJS.enc.Utf8);
+     console.log(originalText);
+   let user = await Admin.findById({_id:originalText});
+   if(user){
+    if(Password){
+      let new_secret = user._id+process.env.SECRET_KEY
+      var decoded = jwt.verify(token,new_secret );
+      if(decoded){
+        const hashedPassword = await bcrypt.hash(Password, 10);
+        await  Admin.findOneAndUpdate(user._id,{
+          $set:{
+            Password:hashedPassword
+          }
+         })
+         res.status(200).json({ message: "Successfully change"})
+
+      }else{
+        res.status(500).json({ message: "Not valid token" });
+      }
+    }else{
+      res.status(402).json({ message: "Enter Password" });
+    }
+   }else{
+    res.status(401).json({ message: "Unvalid user" });
+   }
+ 
+ 
+
+}
+
 module.exports = {
   getAdmin,
   adminPost,
   getAdminCount,
   adminRegister,
   changePassword,
+  getUser,
+  sendEmailResetPassword,
+  passwordUpdate,
 };
